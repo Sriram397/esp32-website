@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Potentiometer Dashboard</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .dashboard {
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+            width: 360px;
+            text-align: center;
+            border: 1px solid #334155;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+            color: #38bdf8;
+        }
+
+        .status {
+            font-size: 0.85rem;
+            margin-bottom: 25px;
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #ef4444;
+        }
+
+        .status.online .status-dot {
+            background-color: #22c55e;
+        }
+
+        .metric-box {
+            background: #0f172a;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #1e293b;
+        }
+
+        .metric-label {
+            font-size: 0.85rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .metric-value {
+            font-size: 2.8rem;
+            font-weight: bold;
+            color: #f8fafc;
+        }
+
+        .metric-unit {
+            font-size: 1.2rem;
+            color: #38bdf8;
+        }
+
+        .progress-container {
+            background-color: #0f172a;
+            border-radius: 10px;
+            height: 16px;
+            width: 100%;
+            overflow: hidden;
+            margin-top: 15px;
+            border: 1px solid #334155;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #38bdf8, #818cf8);
+            border-radius: 10px;
+            transition: width 0.1s ease-out;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard">
+        <h1>Potentiometer Dashboard</h1>
+        <div id="statusIndicator" class="status">
+            <div class="status-dot"></div>
+            <span id="statusText">Connecting...</span>
+        </div>
+
+        <div class="metric-box">
+            <div class="metric-label">Raw ADC Reading</div>
+            <div class="metric-value" id="rawVal">--</div>
+            <div style="color: #64748b; font-size: 0.8rem; margin-top: 4px;">Scale: 0 - 4095</div>
+        </div>
+
+        <div class="metric-box">
+            <div class="metric-label">Voltage</div>
+            <div class="metric-value"><span id="voltVal">--</span> <span class="metric-unit">V</span></div>
+            
+            <div class="progress-container">
+                <div id="progressBar" class="progress-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // NodeMCU-32S IP Address assigned on TestNet
+        const ESP32_IP = "192.168.137.241";
+
+        function updateReadings() {
+            fetch(`http://${ESP32_IP}/data`)
+                .then(response => {
+                    if (!response.ok) throw new Error("Connection Error");
+                    return response.json();
+                })
+                .then(data => {
+                    document.getElementById("rawVal").innerText = data.pot_raw;
+                    document.getElementById("voltVal").innerText = data.pot_volts;
+
+                    // Calculate percentage across 12-bit ADC range (0 - 4095)
+                    const percentage = (data.pot_raw / 4095) * 100;
+                    document.getElementById("progressBar").style.width = percentage + "%";
+
+                    document.getElementById("statusIndicator").className = "status online";
+                    document.getElementById("statusText").innerText = "Connected (" + ESP32_IP + ")";
+                })
+                .catch(error => {
+                    document.getElementById("statusIndicator").className = "status";
+                    document.getElementById("statusText").innerText = "Disconnected";
+                });
+        }
+
+        // Poll every 100ms
+        setInterval(updateReadings, 100);
+    </script>
+</body>
+</html>
