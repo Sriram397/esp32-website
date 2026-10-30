@@ -8,6 +8,7 @@
   const ENERGY_MIN = -0.5;
   const ENERGY_MAX = 0.5;
   const ENERGY_SAMPLES = 241;
+  const POLL_INTERVAL_MS = 150;
 
   const elements = {
     fermi: document.getElementById("fermiLevel"),
@@ -31,6 +32,10 @@
     clipRect: document.getElementById("plotClipRect"),
     chartDescription: document.getElementById("chartDescription"),
     reset: document.getElementById("resetButton"),
+    hardwareStatus: document.getElementById("hardwareStatus"),
+    espAddress: document.getElementById("espAddress"),
+    connect: document.getElementById("connectButton"),
+    connectionHelp: document.getElementById("connectionHelp"),
   };
 
   const SVG_NS = "http://www.w3.org/2000/svg";
@@ -136,9 +141,57 @@
     renderCurve(fermiLevel, temperature);
   }
 
+  let polling = false;
+  async function readHardware() {
+    if (polling) return;
+    const address = elements.espAddress.value.trim();
+    if (!address) {
+      elements.hardwareStatus.textContent = "ENTER ESP32 IP";
+      elements.hardwareStatus.classList.remove("connected");
+      elements.connectionHelp.textContent = "Enter the IP shown in Serial Monitor, for example 192.168.1.42.";
+      return;
+    }
+    polling = true;
+    try {
+      const baseUrl = /^https?:\/\//i.test(address) ? address : `http://${address}`;
+      const endpoint = new URL(baseUrl);
+      endpoint.pathname = `${endpoint.pathname.replace(/\/$/, "")}/data`;
+      const response = await fetch(endpoint, { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      if (!Number.isFinite(data.fermi_raw) || !Number.isFinite(data.temperature_raw)) {
+        throw new Error("Unexpected ESP32 data");
+      }
+
+      // Scale each 12-bit ADC input across the existing slider range.
+      const fermiFraction = Math.max(0, Math.min(4095, data.fermi_raw)) / 4095;
+      const temperatureFraction = Math.max(0, Math.min(4095, data.temperature_raw)) / 4095;
+      const fermiMin = Number(elements.fermi.min);
+      const fermiMax = Number(elements.fermi.max);
+      const temperatureMin = Number(elements.temperature.min);
+      const temperatureMax = Number(elements.temperature.max);
+      elements.fermi.value = (fermiMin + fermiFraction * (fermiMax - fermiMin)).toFixed(2);
+      elements.temperature.value = String(Math.round(temperatureMin + temperatureFraction * (temperatureMax - temperatureMin)));
+      elements.hardwareStatus.textContent = "HARDWARE CONNECTED";
+      elements.hardwareStatus.classList.add("connected");
+      elements.connectionHelp.textContent = `Receiving readings from ${endpoint.host}.`;
+      render();
+    } catch (error) {
+      elements.hardwareStatus.textContent = "HARDWARE OFFLINE";
+      elements.hardwareStatus.classList.remove("connected");
+      elements.connectionHelp.textContent = `Can't reach ${address}. Check the IP, hotspot connection, and that the ESP32 server is running.`;
+    } finally {
+      polling = false;
+    }
+  }
+
   elements.fermi.addEventListener("input", render);
   elements.temperature.addEventListener("input", render);
   elements.material.addEventListener("change", render);
+  elements.connect.addEventListener("click", readHardware);
+  elements.espAddress.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") readHardware();
+  });
   elements.reset.addEventListener("click", () => {
     elements.fermi.value = String(DEFAULTS.fermiLevel);
     elements.temperature.value = String(DEFAULTS.temperature);
@@ -148,4 +201,7 @@
 
   addAxes();
   render();
+  elements.espAddress.value = new URLSearchParams(window.location.search).get("esp32") || "";
+  readHardware();
+  window.setInterval(readHardware, POLL_INTERVAL_MS);
 })();

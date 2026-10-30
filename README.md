@@ -1,19 +1,30 @@
 # Fermi Lab — Distribution Explorer
 
-A small, browser-based dashboard for exploring the Fermi–Dirac occupation probability in silicon and gallium nitride. Both materials currently share the same energy reference and distribution model, as specified for this initial stage.
+A browser-based Fermi–Dirac occupation probability explorer. Two ESP32-connected potentiometers can control the Fermi level and temperature sliders in real time.
 
-## Run locally
+## Run with the ESP32 controller
 
-1. Keep `index.html`, `style.css`, and `script.js` in the same folder.
-2. Open `index.html` in a modern browser.
+1. Connect the Fermi level potentiometer wiper to GPIO 33 and the temperature potentiometer wiper to GPIO 32. On the NodeMCU board, find the pins labeled IO33/GPIO33 and IO32/GPIO32. Connect each pot's other legs to 3V3 and GND. Do not connect potentiometers to 5V. These ADC1 pins support analog reads while Wi-Fi is active. GPIO 27 and GPIO 14 are ADC2 pins on the classic ESP32 and conflict with Wi-Fi analog reads.
+2. In `espcodev1/espcodev1.ino`, set `ssid` and `password` to the laptop hotspot credentials. Upload the sketch.
+3. Open Serial Monitor at 115200 baud and note the ESP32 IP address it prints.
+4. Connect the laptop to the same hotspot, then open `index.html` in Chrome.
+5. Enter the ESP32 IP printed in Serial Monitor in the **ESP32 address** box and click **Connect**.
 
-No build step or package installation is needed. The fonts are loaded from Google Fonts when an internet connection is available; the dashboard itself works without them.
+The page polls `/data` 6–7 times per second. It maps `fermi_raw` (0–4095) to −0.50…+0.50 eV and `temperature_raw` (0–4095) to 50…800 K. The hardware connection badge shows whether readings are arriving. Both values also update the graph and readouts. The IP may change after reconnecting to a hotspot; enter the newly printed address when that happens.
 
-## Controls and model
+The controls can still be dragged with a mouse, but the next ESP32 reading will update them again. The material selector remains a display setting and does not change the equation.
+
+## Browser-only use
+
+Open `index.html` in a modern browser. If the ESP32 is not reachable, the dashboard remains usable with its sliders; the status badge shows **HARDWARE OFFLINE**. The dashboard has no build step or package installation. Google Fonts load when internet access is available.
+
+In VS Code, press **F5** and choose **Launch website in Chrome**. The launch configuration starts a local Python web server on `127.0.0.1:8080` before opening Chrome. Python must be installed. If port 8080 is already in use, stop the other server using that port first.
+
+## Model
 
 - **Fermi level:** −0.50 to +0.50 eV, relative to the conduction band reference `E_C = 0 eV`.
 - **Temperature:** 50 to 800 K.
-- **Material:** Silicon (Si) or Gallium Nitride (GaN). The choice is displayed in the dashboard and does not yet change the equation.
-- **Reset to defaults:** Fermi level 0.00 eV, temperature 300 K, and Silicon.
+- **Material:** Silicon (Si) or Gallium Nitride (GaN), shown in the dashboard; both currently use the same reference and equation.
+- **Reset:** sets Fermi level to 0.00 eV, temperature to 300 K, and material to Silicon. Hardware readings will apply again on the next poll.
 
-The plot shows `f(E) = 1 / (1 + exp((E − E_F) / (k_B T)))` over −0.50 to +0.50 eV. Its dashed vertical marker indicates `E_F`. The graph is drawn with native SVG and updates in the browser as controls change.
+The plot shows `f(E) = 1 / (1 + exp((E − E_F) / (k_B T)))` over −0.50 to +0.50 eV. Its dashed vertical marker indicates `E_F`. The graph uses native SVG.

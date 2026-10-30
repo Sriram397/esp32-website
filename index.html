@@ -28,7 +28,13 @@
 
       <section class="workspace" aria-label="Distribution controls and graph">
         <aside class="control-panel" aria-label="Simulation settings">
-          <div class="panel-heading"><div><span class="section-index">01</span><h2>Parameters</h2></div><span class="control-tag">LIVE CONTROLS</span></div>
+          <div class="panel-heading"><div><span class="section-index">01</span><h2>Parameters</h2></div><span class="control-tag" id="hardwareStatus" role="status" aria-live="polite">HARDWARE CONNECTING</span></div>
+
+          <div class="device-connect">
+            <label for="espAddress">ESP32 address</label>
+            <div class="device-connect-row"><input id="espAddress" type="text" inputmode="url" autocomplete="url" placeholder="e.g. 192.168.1.42" aria-describedby="connectionHelp"><button id="connectButton" type="button">Connect</button></div>
+            <p id="connectionHelp" class="field-note">Enter the IP shown in Serial Monitor. Both devices must use the same hotspot.</p>
+          </div>
 
           <div class="control-group material-group">
             <div class="control-label-row"><label for="material">Material</label><span class="control-hint">SEMICONDUCTOR</span></div>
