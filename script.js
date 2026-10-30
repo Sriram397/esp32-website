@@ -26,6 +26,7 @@
     axisLayer: document.getElementById("axisLayer"),
     labelLayer: document.getElementById("labelLayer"),
     curvePath: document.getElementById("curvePath"),
+    boltzmannPath: document.getElementById("boltzmannPath"),
     curveArea: document.getElementById("curveArea"),
     fermiLine: document.getElementById("fermiLine"),
     fermiPoint: document.getElementById("fermiPoint"),
@@ -56,6 +57,14 @@
     if (exponent >= 40) return 0;
     if (exponent <= -40) return 1;
     return 1 / (1 + Math.exp(exponent));
+  }
+
+  function boltzmannApproximation(energy, fermiLevel, temperature) {
+    const exponent = (energy - fermiLevel) / (BOLTZMANN_EV_PER_K * temperature);
+    // Keep the SVG finite; values above 1 are clipped to the chart's probability range.
+    if (exponent <= 0) return 1;
+    if (exponent >= 40) return 0;
+    return Math.exp(-exponent);
   }
 
   function xForEnergy(energy) {
@@ -100,16 +109,19 @@
 
   function renderCurve(fermiLevel, temperature) {
     const points = [];
+    const boltzmannPoints = [];
     for (let index = 0; index < ENERGY_SAMPLES; index += 1) {
       const energy = ENERGY_MIN + (index / (ENERGY_SAMPLES - 1)) * (ENERGY_MAX - ENERGY_MIN);
       const probability = occupationProbability(energy, fermiLevel, temperature);
       points.push([xForEnergy(energy), yForProbability(probability)]);
+      boltzmannPoints.push([xForEnergy(energy), yForProbability(boltzmannApproximation(energy, fermiLevel, temperature))]);
     }
 
     const linePath = points.map(([x, y], index) => `${index === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`).join(" ");
     const first = points[0];
     const last = points[points.length - 1];
     elements.curvePath.setAttribute("d", linePath);
+    elements.boltzmannPath.setAttribute("d", boltzmannPoints.map(([x, y], index) => `${index === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`).join(" "));
     elements.curveArea.setAttribute("d", `${linePath} L${last[0].toFixed(2)},${plot.bottom} L${first[0].toFixed(2)},${plot.bottom} Z`);
 
     const markerX = xForEnergy(fermiLevel);
@@ -120,7 +132,7 @@
     elements.fermiLine.setAttribute("y2", plot.bottom);
     elements.fermiPoint.setAttribute("cx", markerX);
     elements.fermiPoint.setAttribute("cy", markerY);
-    elements.chartDescription.textContent = `Occupation probability from ${ENERGY_MIN.toFixed(2)} to ${ENERGY_MAX.toFixed(2)} electron volts at ${temperature} kelvin. The Fermi level is ${fermiLevel.toFixed(2)} electron volts, where occupation probability is 0.5.`;
+    elements.chartDescription.textContent = `Fermi–Dirac occupation probability and the Maxwell–Boltzmann approximation from ${ENERGY_MIN.toFixed(2)} to ${ENERGY_MAX.toFixed(2)} electron volts at ${temperature} kelvin. The Fermi level is ${fermiLevel.toFixed(2)} electron volts.`;
   }
 
   function render() {
